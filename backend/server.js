@@ -1,3 +1,4 @@
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -9,29 +10,45 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.send("Recipe Archive API is running!");
+  res.send("Flavourio Recipe Book API is running!");
 });
 
 app.use("/api/recipes", require("./routes/recipeRoutes"));
 
-const PORT = process.env.PORT || 5000;
-
-async function startServer() {
-  try {
+async function connectDB() {
+  if (mongoose.connection.readyState === 0) {
     if (!process.env.MONGODB_URI) {
-      throw new Error("MONGODB_URI is missing from backend/.env");
+      throw new Error("MONGODB_URI is missing");
     }
 
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log("MongoDB Atlas connected successfully!");
-
-    app.listen(PORT, () => {
-      console.log(`Server running at http://localhost:${PORT}`);
-    });
-  } catch (error) {
-    console.error("Server startup failed:", error.message);
-    process.exit(1);
+    console.log("MongoDB connected!");
   }
 }
 
-startServer();
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Database connection failed" });
+  }
+});
+
+const PORT = process.env.PORT || 5000;
+
+if (require.main === module) {
+  connectDB()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+      });
+    })
+    .catch((error) => {
+      console.error("Server startup failed:", error.message);
+      process.exit(1);
+    });
+}
+
+module.exports = app;
